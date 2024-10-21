@@ -1,4 +1,4 @@
-const { formatResponse } = require('../helpers/index.js');
+const { formatResponse, formatDocTypeFieldsData, getAwsSignedURLs } = require('../helpers/index.js');
 const api = require('../services/ApiSm.js');
 
 async function getDocuments(req, res) {
@@ -7,9 +7,9 @@ async function getDocuments(req, res) {
     const {
       docAreaId,
       docId,
+      orgId,
       perPage = 200,
       page = 1,
-      orgId,
     } = queryParams;
 
     const { authorization = '' } = req.headers || {};
@@ -71,15 +71,19 @@ async function getDocuments(req, res) {
 
       const fieldsData = formatDocTypeFieldsData(docTypeFieldsData);
 
-      const newDoc = {
+      let newDoc = {
         id: _id,
-        document,
         created,
         tags,
         fieldsData,
       };
 
       if (document && name) {
+        newDoc = {
+          ...newDoc,
+          document,
+        };
+
         filesToGetSignedUrl = [
           ...filesToGetSignedUrl,
           { document, name },

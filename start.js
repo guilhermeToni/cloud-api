@@ -10,6 +10,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use('/', (req, res) => {
+  res.json({ message: 'Success' });
+});
+
 app.use('/api/v1', routes);
 
 app.listen(port, () => {

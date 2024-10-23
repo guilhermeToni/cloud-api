@@ -2,8 +2,11 @@ const { signinUserAndPass, formatResponse } = require('../helpers/index.js');
 
 async function signin(req, res) {
   try {
-    const queryParams = req?.body || {};
-    const { username, password } = queryParams;
+    console.log('body', req.body);
+    console.log('query', req.query);
+
+    const bodyParams = req?.body || {};
+    const { username, password } = bodyParams;
     if (!username && !password) {
       return res.json({
         error: true,

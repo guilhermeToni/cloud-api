@@ -51,8 +51,6 @@ async function getDocuments(req, res) {
     const docs = await api.user.document.searchDocuments(params, token);
     const docsLength = docs?.took || 0;
 
-    console.log(docs);
-
     if (docsLength === 0) {
       const message = 'Documents not found';
       const retData = formatResponse({ error: false, message });
@@ -84,6 +82,7 @@ async function getDocuments(req, res) {
         newDoc = {
           ...newDoc,
           document,
+          name,
         };
 
         filesToGetSignedUrl = [

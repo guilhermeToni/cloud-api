@@ -25,6 +25,10 @@ function formatDocTypeFieldsData(docTypeFieldsData) {
     let newKey = key.replace('extra', '');
     newKey = `${newKey.charAt(0).toUpperCase()}${newKey.slice(1)}`;
 
+    const isArray = Array.isArray(currentField);
+
+    if (newKey.toLowerCase().endsWith('items') && isArray) return acc;
+
     return {
       ...acc,
       [newKey]: currentField,

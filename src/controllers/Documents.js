@@ -48,66 +48,95 @@ async function getDocuments(req, res) {
         di: docId,
       },
     };
+
+    const pagination = {
+      nextPage: null,
+      previousPage: Number(page) - 1 === 0 ? null : Number(page) - 1,
+      currentPage: Number(page),
+    };
+  
     const docs = await api.user.document.searchDocuments(params, token);
-    const docsLength = docs?.took || 0;
+    const { items = [], count = 0 } = docs;
+
+    const docsLength = items?.length || 0;
 
     if (docsLength === 0) {
-      const message = 'Documents not found';
-      const retData = formatResponse({ error: false, message });
+      const message = 'No Documents found';
+      const retData = formatResponse({ error: false, message, data: { ...pagination } });
       res.json(retData);
       return;
     }
 
+    if (docsLength * Number(page) < count) {
+      pagination.nextPage = Number(page) + 1;
+    }
+
     let filesToGetSignedUrl = [];
-    const filteredDocs = docs.items.map(item => {
+
+    const formattedDocs = items.reduce((allDocuments, currentDocument) => {
       const {
-        _id,
+        _id: id,
         created,
         document,
         docTypeFieldsData,
-        tags = [],
         name,
-      } = item;
+        tags = [],
+      } = currentDocument;
+
+      const { extraId = '' } = docTypeFieldsData;
+
+      if (!allDocuments[extraId]) {
+        allDocuments = {
+          ...allDocuments,
+          [extraId]: [],
+        };
+      }
 
       const fieldsData = formatDocTypeFieldsData(docTypeFieldsData);
-
-      let newDoc = {
-        id: _id,
+      let newDocument = {
+        id,
         created,
         tags,
+        name,
         fieldsData,
       };
 
       if (document && name) {
-        newDoc = {
-          ...newDoc,
+        newDocument = {
+          ...newDocument,
           document,
           name,
         };
 
         filesToGetSignedUrl = [
           ...filesToGetSignedUrl,
-          { document, name },
+          { document, name, id: extraId },
         ];
       }
 
-      return newDoc;
-    });
+      allDocuments[extraId].push(newDocument);
+
+      return allDocuments;
+    }, {});
 
     const signedDocs = await getAwsSignedURLs(filesToGetSignedUrl, orgId, token);
     const { docs: signedUrlDocs = [] } = signedDocs;
-    for (const docSignedUrl of signedUrlDocs) {
-      const index = filteredDocs.findIndex(item => item.document === docSignedUrl.document);
-      if (index !== -1) {
-        filteredDocs[index] = {
-          ...filteredDocs[index],
-          documentUrl: docSignedUrl.signedUrl,
+    for (let index = 0; index < filesToGetSignedUrl.length; index += 1) {
+      const { id = '', document } = filesToGetSignedUrl[index];
+      const targetSignedUrl = signedUrlDocs.find(doc => doc.document === document);
+      if (!targetSignedUrl) return;
+
+      const documentIndex = formattedDocs[id].findIndex(item => item.document === targetSignedUrl.document);
+      if (documentIndex !== -1) {
+        formattedDocs[id][documentIndex] = {
+          ...formattedDocs[id][documentIndex],
+          documentUrl: targetSignedUrl.signedUrl,
         };
       }
     }
 
     const message = 'Get documents successfully';
-    const retData = formatResponse({ error: false, message, data: filteredDocs });
+    const retData = formatResponse({ error: false, message, data: { docs: formattedDocs, ...pagination } });
     res.json(retData);
   } catch (err) {
     const message = err?.message || '';
